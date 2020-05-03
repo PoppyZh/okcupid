@@ -1,0 +1,157 @@
+---
+title: "Okcupid data"
+output:
+  html_document:
+    df_print: paged
+    code_folding: hide
+---
+
+
+```{r knitr_init, echo=FALSE, cache=FALSE, warning=FALSE}
+library(knitr)
+library(rmdformats)
+library(pander)
+
+## Global options
+panderOptions('digits', 2)
+options(max.print="75")
+opts_chunk$set(echo=FALSE,
+	             cache=TRUE,
+               prompt=FALSE,
+               comment=NA,
+               message=FALSE,
+               warning=FALSE)
+opts_knit$set(width=75)
+```
+
+
+
+```{r warning=FALSE}
+#install.packages("quanteda")
+library(quanteda)
+library(data.table)
+library(stringr)
+library(sjPlot)
+library(sjmisc)
+library(summarytools)
+```
+
+# check some dependent variables 
+
+These are the dependent variables we have generated so far: 
+
+```{r cache=TRUE}
+
+okcupid<- fread("okcupid_text.csv")
+sjmisc::descr(okcupid[,c(23:31, 33:54)], show= c('type', 'n', 'mean', 'sd', 'md'))
+```
+
+# Essays
+
+In total we have 9 types of essays 
+
+- About me: self summary
+- What I am doing with my life
+- I am good at
+- People notice this about me 
+- Fav books and other things
+- Never do without 
+- I spend a lot of time thinking
+- On a friday night I would 
+- Private thing 
+- You should message me if
+
+## About me
+Here are some examples of texts
+
+```{r}
+
+okcupid$essay0_clean<-gsub("<.*?>", " ", okcupid$essay0)  
+okcupid$essay0_clean<-gsub("[\r\n]", " ", okcupid$essay0_clean)
+
+okcupid$essay1_clean<-gsub("<.*?>", " ", okcupid$essay1)  
+okcupid$essay1_clean<-gsub("[\r\n]", " ", okcupid$essay1_clean)
+
+okcupid$essay2_clean<-gsub("<.*?>", " ", okcupid$essay2)  
+okcupid$essay2_clean<-gsub("[\r\n]", " ", okcupid$essay2_clean)
+
+okcupid$essay3_clean<-gsub("<.*?>", " ", okcupid$essay3)  
+okcupid$essay3_clean<-gsub("[\r\n]", " ", okcupid$essay3_clean)
+
+okcupid$essay4_clean<-gsub("<.*?>", " ", okcupid$essay4)  
+okcupid$essay4_clean<-gsub("[\r\n]", " ", okcupid$essay4_clean)
+
+okcupid$essay5_clean<-gsub("<.*?>", " ", okcupid$essay5)  
+okcupid$essay5_clean<-gsub("[\r\n]", " ", okcupid$essay5_clean)
+
+okcupid$essay6_clean<-gsub("<.*?>", " ", okcupid$essay6)  
+okcupid$essay6_clean<-gsub("[\r\n]", " ", okcupid$essay6_clean)
+
+okcupid$essay7_clean<-gsub("<.*?>", " ", okcupid$essay7)  
+okcupid$essay7_clean<-gsub("[\r\n]", " ", okcupid$essay7_clean)
+
+okcupid$essay8_clean<-gsub("<.*?>", " ", okcupid$essay8)  
+okcupid$essay8_clean<-gsub("[\r\n]", " ", okcupid$essay8_clean)
+
+okcupid$essay9_clean<-gsub("<.*?>", " ", okcupid$essay9)  
+okcupid$essay9_clean<-gsub("[\r\n]", " ", okcupid$essay9_clean)
+```
+
+```{r}
+
+t<-okcupid[1:5, c(557:566)]
+
+colnames(t)<-c('summay',
+ 'current_life',
+ 'strength',
+ 'first_impression',
+ 'fav',
+ 'musthave ',
+ 'thoughts',
+ 'friday',
+ 'private',
+ 'message')
+
+t
+
+
+```
+
+```{r}
+
+essay0<-corpus(okcupid$essay0_clean)
+docvars(essay0, "body_fit") <- okcupid$body_fit  
+
+```
+
+
+## For the first essay 'summary', we can do some topic modeling 
+```{r cache=TRUE}
+require(stm)
+#kwic(essay0, "history")
+quant_dfm <- dfm(essay0, 
+                remove_punct = TRUE,
+                remove_numbers = TRUE, 
+                remove = stopwords("english"))
+quant_dfm <- dfm_trim(quant_dfm, min_termfreq = 4, max_docfreq = 10)
+
+set.seed(100)
+if (require(stm)) {
+    my_lda_fit20 <- stm(quant_dfm, K = 10, verbose = FALSE)
+    plot(my_lda_fit20)    
+}
+```
+
+## Also a network of words
+
+```{r }
+examplefcm <-tokens(essay0, remove_punct = TRUE) %>%
+tokens_tolower() %>%
+tokens_remove(stopwords("english"), padding = FALSE) %>%
+fcm(context = "window", window = 5, tri = FALSE)
+# choose 30 most frequency features
+topfeats <- names(topfeatures(examplefcm, 20))
+# select the top 30 features only, plot the network
+set.seed(100)
+textplot_network(fcm_select(examplefcm, topfeats), min_freq = 0.8)
+```
